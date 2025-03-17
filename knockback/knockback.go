@@ -17,7 +17,7 @@ var (
 	// hitDelay is the delay between hits.
 	hitDelay = 500 * time.Millisecond
 	// goph represents the gophig instance.
-	goph *gophig.Gophig
+	goph *gophig.Gophig[settings]
 )
 
 // settings is a struct that holds the settings for the knockback library.
@@ -33,7 +33,11 @@ func Load(path string) error {
 	if len(pathSplit) < 2 {
 		return errors.New("could not find file extension in path")
 	}
-	goph = gophig.NewGophig(pathSplit[0], pathSplit[1], os.ModePerm)
+	marshaler, err := gophig.MarshalerFromExtension(pathSplit[1])
+	if err != nil {
+		errors.New("file extension not supported (cannot get marshaler for)")
+	}
+	goph = gophig.NewGophig[settings](path, marshaler, os.ModePerm)
 
 	s := settings{
 		Force:    force,
@@ -42,7 +46,7 @@ func Load(path string) error {
 	}
 
 	_ = os.MkdirAll(filepath.Dir(path), 0777)
-	err := goph.GetConf(&s)
+	s, err = goph.LoadConf()
 	if err != nil {
 		if os.IsNotExist(err) {
 			save()
@@ -79,5 +83,5 @@ func save() {
 	}
 
 	_ = os.MkdirAll(filepath.Dir("assets/knockback.json"), 0777)
-	_ = goph.SetConf(s)
+	_ = goph.SaveConf(s)
 }
